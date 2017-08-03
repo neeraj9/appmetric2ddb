@@ -1,0 +1,25 @@
+#!/bin/bash
+
+if [ ! -d "/data/appmetric2ddb" ]; then
+    mkdir -p /data/appmetric2ddb
+fi
+
+if [ ! -d "/data/appmetric2ddb/log" ]; then
+    mkdir -p /data/appmetric2ddb/log
+fi
+
+CONFFILE=/data/appmetric2ddb/etc/appmetric2ddb.conf
+
+if [ ! -f "${CONFFILE}" ]
+then
+    echo "Creating new configuration from example file."
+    cp ${CONFFILE}.example ${CONFFILE}
+else
+    echo "Please update your configuration according to the update manual!"
+fi
+
+# Sort out file permissions
+if [[ $(id appmetric2ddb 2>/dev/null) ]] ;then
+    chown -R appmetric2ddb:appmetric2ddb /data/appmetric2ddb
+    chown -R appmetric2ddb:appmetric2ddb /usr/lib/appmetric2ddb
+fi

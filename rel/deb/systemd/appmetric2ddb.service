@@ -1,0 +1,12 @@
+[Unit]
+Description=DalmatinerDB PostgreSQL Auto Publisher
+After=network.target
+
+[Service]
+User=appmetric2ddb
+Group=appmetric2ddb
+ExecStart=/usr/lib/appmetric2ddb/bin/appmetric2ddb console -noinput +Bd
+
+[Install]
+WantedBy=multi-user.target
+

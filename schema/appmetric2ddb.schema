@@ -1,0 +1,65 @@
+%% -*- erlang -*-
+
+%% @doc The path data gets stored into.
+{mapping, "run_user_home", "setup.home",
+ [{default, "{{run_user_home}}"},
+  {datatype, string}]}.
+
+{mapping, "ddb.enabled", "appmetric2ddb.ddbconfig.enabled",
+ [{default, true},
+  {datatype, flag}]}.
+
+{mapping, "ddb.endpoint", "appmetric2ddb.ddbconfig.endpoint",
+ [{default, {"127.0.0.1", 5555}},
+  {datatype, ip}]}.
+
+%% RabbitMQ to monitor
+{mapping, "ddb.rabbitmq.$id.name", "appmetric2ddb.ddbconfig.rabbitmq",
+ [{default, ddb2pgidx1_worker},
+  {datatype, atom},
+  {include_default, "1"}]}.
+
+{mapping, "ddb.rabbitmq.$id.bucket", "appmetric2ddb.ddbconfig.rabbitmq",
+ [{default, "bucketname"},
+  {datatype, string},
+  {include_default, "1"}]}.
+
+{mapping, "ddb.rabbitmq.$id.interval", "appmetric2ddb.ddbconfig.rabbitmq",
+ [{default, 10000},
+  {datatype, integer},
+  {include_default, "1"}]}.
+
+{mapping, "ddb.rabbitmq.$id.rmq_endpoint", "appmetric2ddb.ddbconfig.rabbitmq",
+ [{default, {"127.0.0.1", 15672},
+  {datatype, ip},
+  {include_default, "1"}]}.
+
+{mapping, "ddb.rabbitmq.$id.rmq_user", "appmetric2ddb.ddbconfig.rabbitmq",
+ [{default, "guest"},
+  {datatype, string},
+  {include_default, "1"}]}.
+
+{mapping, "ddb.rabbitmq.$id.rmq_password", "appmetric2ddb.ddbconfig.rabbitmq",
+ [{default, "guest"},
+  {datatype, string},
+  {include_default, "1"}]}.
+
+{translation,
+  "appmetric2ddb.ddbconfig.rabbitmq",
+  fun(Conf) ->
+   SomeList = lists:filter(
+     fun({K, _V}) ->
+       %%cuttlefish_variable:is_fuzzy_match(K, string:tokens("ddb.rabbitmq.$id.name", "."))
+       % {["ddb","rabbitmq","1","interval"],10000}
+       case K of
+         ["ddb", "rabbitmq", _, _] -> true;
+         _ -> false
+       end
+     end,
+     Conf),
+   M = lists:foldl(fun({[_, _, Id, Name], V}, AccIn) ->
+     OldMap = maps:get(Id, AccIn, #{}),
+     AccIn#{Id => OldMap#{list_to_atom(Name) => V}}
+               end, #{}, SomeList),
+   [maps:to_list(X) || X <- maps:values(M)]
+  end}.

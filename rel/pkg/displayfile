@@ -1,0 +1,13 @@
+  Congratulations the Dalmatiner PX server was sucessfully installed
+.------------------------------------------------------------------------------.
+| By default the service is disabled since it's common that you will need to   |
+| do some additional configurations.                                           |
+|                                                                              |
+| Please have a look at the configuration files:                               |
+|                                                                              |
+|  * /data/appmetric2ddb/etc/appmetric2ddb.conf                                  |
+|                                                                              |
+| Note: To enable Dalmatiner PX you first need to enable the epmd service.     |
+|                                                                              |
+`------------------------------------------------------------------------------'
+

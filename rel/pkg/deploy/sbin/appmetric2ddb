@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+/opt/local/appmetric2ddb/bin/appmetric2ddb $@

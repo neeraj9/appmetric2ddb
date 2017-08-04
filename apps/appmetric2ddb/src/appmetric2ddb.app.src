@@ -19,7 +19,8 @@
     dproto,
     trie,
     snappiest,
-    jsone
+    jsone,
+    qdate
    ]},
   {env,[]},
   {modules, []},

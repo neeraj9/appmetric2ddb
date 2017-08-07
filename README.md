@@ -36,8 +36,12 @@ Release
 $ rebar3 release
 ```
 
+Supported Applications
+----------------------
+
+1. RabbitMQ
+
 Todo
 ----
 
 1. RiakTS support
-2. RabbitMQ support

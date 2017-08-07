@@ -12,6 +12,16 @@ changes.
 > [ddb_proxy](https://github.com/dalmatinerdb/ddb_proxy) is used
 > as the bootstrap for this project.
 
+Debian Package Build
+--------------------
+
+Note that building a debian package is as simple as a makefile target,
+as shown below.
+
+```bash
+$ sudo make deb-pacakge
+```
+
 Build
 -----
 

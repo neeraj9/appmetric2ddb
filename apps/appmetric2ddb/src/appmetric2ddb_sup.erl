@@ -36,9 +36,7 @@
 -spec(start_link() ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
-    Response = supervisor:start_link({local, ?SERVER}, ?MODULE, []),
-    dqe_idx_pg:init(),
-    Response.
+    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %%%===================================================================
 %%% Supervisor callbacks

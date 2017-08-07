@@ -12,8 +12,18 @@
 
 -include("appmetric2ddb.hrl").
 
+%% ignore unused function warning because the function
+%% receive_rabbitmq_metrics is invoked in a separate
+%% process.
+-compile({nowarn_unused_function, [receive_rabbitmq_metrics/3,
+                                   get_rabbitmq_nodes_info/2,
+                                   get_rabbitmq_channels_info/2,
+                                   get_rabbitmq_queues_info/2,
+                                   http_get_url/3]}).
+
 %% API
 -export([start_link/1]).
+-export([receive_rabbitmq_metrics/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -94,9 +104,9 @@ init([DdbConfig, RabbitMqConfig]) ->
             DDBBucket = list_to_binary(DDBBucketS),
             {RmqHost, RmqPort} = proplists:get_value(
                 rmq_endpoint, RabbitMqConfig),
-            RmqUser = list_to_binary(proplists:get_value(rmq_user, RabbitMqConfig)),
-            RmqPassword = list_to_binary(proplists:get_value(rmq_password, RabbitMqConfig)),
-            RmqBaseUrl = io_lib:format("http://~p:~p", [RmqHost, RmqPort]),
+            RmqUser = proplists:get_value(rmq_user, RabbitMqConfig),
+            RmqPassword = proplists:get_value(rmq_password, RabbitMqConfig),
+            RmqBaseUrl = lists:flatten(io_lib:format("http://~s:~p", [RmqHost, RmqPort])),
             RmqHttpBasicAuth = "Basic " ++ base64:encode_to_string(RmqUser ++ ":" ++ RmqPassword),
             IntervalMsec = proplists:get_value(interval, RabbitMqConfig),
             {ok, #state{interval = IntervalMsec, bucket = DDBBucket,
@@ -198,12 +208,12 @@ handle_info({timeout, _R, tick} = _Info,
                                         PeerRefreshPid;
                                     false ->
                                         spawn_link(?MODULE,
-                                            fun receive_rabbitmq_metrics/3,
+                                            receive_rabbitmq_metrics,
                                             [RmqBaseUrl, RmqHttpBasicAuth, self()])
                                 end;
                             _ ->
                                 spawn_link(?MODULE,
-                                    fun receive_rabbitmq_metrics/3,
+                                    receive_rabbitmq_metrics,
                                     [RmqBaseUrl, RmqHttpBasicAuth, self()])
                             end,
     Ref = erlang:start_timer(FlushInterval, self(), tick),
@@ -214,7 +224,7 @@ handle_info(timeout, State = #state{interval = IntervalMsec,
     lager:debug("handle_info(~p, ~p)", [timeout, State]),
     lager:debug("starting tick timer"),
     %% refresh the list immediately for local caching
-    PeerRefreshPid = spawn_link(node(), ?MODULE, fun receive_rabbitmq_metrics/3,
+    PeerRefreshPid = spawn_link(node(), ?MODULE, receive_rabbitmq_metrics,
         [RmqBaseUrl, RmqHttpBasicAuth, self()]),
     Ref = erlang:start_timer(IntervalMsec, self(), tick),
     {noreply, State#state{ref = Ref,
@@ -271,10 +281,6 @@ terminate(_Reason, #state{ddb = DDB} = _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
 receive_rabbitmq_metrics(RmqBaseUrl, RmqHttpBasicAuth, CallbackPid) ->
     NodesInfo = get_rabbitmq_nodes_info(RmqBaseUrl, RmqHttpBasicAuth),
     ChannelsInfo = get_rabbitmq_channels_info(RmqBaseUrl, RmqHttpBasicAuth),
@@ -282,6 +288,10 @@ receive_rabbitmq_metrics(RmqBaseUrl, RmqHttpBasicAuth, CallbackPid) ->
     R = [{nodes, NodesInfo}, {channels, ChannelsInfo}, {queues, QueuesInfo}],
     gen_server:cast(CallbackPid, {rabbitmq, R}).
 
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
 
 get_rabbitmq_nodes_info(RmqBaseUrl, RmqHttpBasicAuth) ->
     case http_get_url("/api/nodes", RmqBaseUrl, RmqHttpBasicAuth) of
@@ -306,7 +316,9 @@ get_rabbitmq_nodes_info(RmqBaseUrl, RmqHttpBasicAuth) ->
                     <<"uptime_hours">> => UptimeHours,
                     <<"uptime_mins">> => UptimeMins}}
                         end, #{}, SelectedMaps);
-        _ -> undefined
+        E ->
+            lager:error("Error, E=~p", [E]),
+            undefined
     end.
 
 get_rabbitmq_channels_info(RmqBaseUrl, RmqHttpBasicAuth) ->
@@ -346,7 +358,9 @@ get_rabbitmq_channels_info(RmqBaseUrl, RmqHttpBasicAuth) ->
                     end, MetricInfo, OldMetricInfo),
                 AccIn#{{Node, Peer} => UpdatedMetricInfo}
                 end, #{}, Maps);
-        _ -> undefined
+        E ->
+            lager:error("Error, E=~p", [E]),
+            undefined
     end.
 
 get_rabbitmq_queues_info(RmqBaseUrl, RmqHttpBasicAuth) ->
@@ -377,20 +391,20 @@ get_rabbitmq_queues_info(RmqBaseUrl, RmqHttpBasicAuth) ->
                 IdleSinceEpocSec = qdate:to_unixtime(maps:get(<<"idle_since">>, E)),
                 BackingQueueStatus = maps:get(<<"backing_queue_status">>, E),
                 #{
-                    <<"bqs_q1">> := BqsQ1,
-                    <<"bqs_q2">> := BqsQ2,
-                    <<"bqs_q3">> := BqsQ3,
-                    <<"bqs_q4">> := BqsQ4,
-                    <<"bqs_len">> := BqsLen,
-                    <<"bqs_pending_acks">> := BqsPendingAcks,
-                    <<"bqs_ram_msg_count">> := BqsRamMsgCount,
-                    <<"bqs_ram_ack_count">> := BqsRamAckCount,
-                    <<"bqs_next_seq_id">> := BqsNextSeqId,
-                    <<"bqs_persistent_count">> := BqsPersistentCount,
-                    <<"bqs_avg_ingress_rate">> := BqsAvgIngressRate,
-                    <<"bqs_avg_egress_rate">> := BqsAvgEgressRate,
-                    <<"bqs_avg_ack_ingress_rate">> := BqsAvgAckIngressRate,
-                    <<"bqs_avg_ack_egress_rate">> := BqsAvgAckEgressRate
+                    <<"q1">> := BqsQ1,
+                    <<"q2">> := BqsQ2,
+                    <<"q3">> := BqsQ3,
+                    <<"q4">> := BqsQ4,
+                    <<"len">> := BqsLen,
+                    <<"pending_acks">> := BqsPendingAcks,
+                    <<"ram_msg_count">> := BqsRamMsgCount,
+                    <<"ram_ack_count">> := BqsRamAckCount,
+                    <<"next_seq_id">> := BqsNextSeqId,
+                    <<"persistent_count">> := BqsPersistentCount,
+                    <<"avg_ingress_rate">> := BqsAvgIngressRate,
+                    <<"avg_egress_rate">> := BqsAvgEgressRate,
+                    <<"avg_ack_ingress_rate">> := BqsAvgAckIngressRate,
+                    <<"avg_ack_egress_rate">> := BqsAvgAckEgressRate
                 } = BackingQueueStatus,
                 MetricInfo = Info#{
                     <<"publish">> => Publish, <<"publish_rate">> => PublishRate,
@@ -416,7 +430,9 @@ get_rabbitmq_queues_info(RmqBaseUrl, RmqHttpBasicAuth) ->
                     <<"bqs_avg_ack_egress_rate">> => BqsAvgAckEgressRate},
                 AccIn#{{Node, Name} => MetricInfo}
                         end, #{}, Maps);
-        _ -> undefined
+        E ->
+            lager:error("Error, E=~p", [E]),
+            undefined
     end.
 
 
@@ -427,7 +443,9 @@ http_get_url(Path, RmqBaseUrl, RmqHttpBasicAuth) ->
     HTTPOptions = [{timeout, ?HTTP_TIMEOUT_MSEC}, {connect_timeout, ?HTTP_CONNECT_TIMEOUT_MSEC}],
     Options = [{body_format, binary}],
     try
-        httpc:request(get, {RmqBaseUrl ++ Path, [{"Authorization", RmqHttpBasicAuth}]}, HTTPOptions, Options)
+        R = httpc:request(get, {RmqBaseUrl ++ Path, [{"Authorization", RmqHttpBasicAuth}]}, HTTPOptions, Options),
+        %% lager:info("http-get Req=~p Path=~p, Response=~p", [[{RmqBaseUrl ++ Path, [{"Authorization", RmqHttpBasicAuth}]}, HTTPOptions, Options], Path, R]),
+        R
     catch
         Class:Error ->
             lager:error("http failure, Class=~p, Error=~p", [Class, Error]),
@@ -473,6 +491,12 @@ close_ddb(DDB) ->
 
 -spec ddb_send(Metric :: list(binary()), Value :: integer() | float(),
     DDB :: ddb_tcp:connection()) -> ddb_tcp:connection().
+ddb_send(Metric, true, DDB) ->
+    {_, DDB1} = ddb_tcp:batch(Metric, mmath_bin:from_list([1]), DDB),
+    DDB1;
+ddb_send(Metric, false, DDB) ->
+    {_, DDB1} = ddb_tcp:batch(Metric, mmath_bin:from_list([0]), DDB),
+    DDB1;
 ddb_send(Metric, Value, DDB) when is_integer(Value) ->
     {_, DDB1} = ddb_tcp:batch(Metric, mmath_bin:from_list([Value]), DDB),
     DDB1;

@@ -233,7 +233,7 @@ handle_info({TcpEvent, _Socket}, State = #state{
         {ok, DDB1} ->
             %% Timer is already running, so do not touch that
             {noreply, State#state{ddb = DDB1}};
-        {error, Reason} ->
+        {error, _Reason} ->
             {noreply, State#state{ddb = undefined}}
     end;
 handle_info(_Info, State) ->
@@ -420,7 +420,7 @@ get_rabbitmq_queues_info(RmqBaseUrl, RmqHttpBasicAuth) ->
     end.
 
 
--spec http_get_url(Path, RmqBaseUrl, RmqHttpBasicAuth) ->
+-spec http_get_url(Path :: string(), RmqBaseUrl :: string(), RmqHttpBasicAuth :: string()) ->
     {ok, {Status :: term(), Header :: list(), Body :: string()}} |
     {error, {term(), term()}}.
 http_get_url(Path, RmqBaseUrl, RmqHttpBasicAuth) ->

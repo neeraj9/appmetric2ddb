@@ -30,7 +30,7 @@
   {include_default, "1"}]}.
 
 {mapping, "ddb.rabbitmq.$id.rmq_endpoint", "appmetric2ddb.ddbconfig.rabbitmq",
- [{default, {"127.0.0.1", 15672},
+ [{default, {"127.0.0.1", 15672}},
   {datatype, ip},
   {include_default, "1"}]}.
 

@@ -1,9 +1,9 @@
-Package: ddbpgap
+Package: appmetric2ddb
 Version: 0.1.0
 License: MIT
 Section: base
 Maintainer: Neeraj Sharma <neeraj.sharma@alumni.iitg.ernet.in>
 Priority: optional
 Architecture: amd64
-Description: Dalmatiner DB PostgreSQL Auto Publisher
-  Auto publisher.
+Description: An application metric publisher to DalmatinerDB.
+  Application metric publisher.

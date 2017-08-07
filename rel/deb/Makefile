@@ -29,7 +29,7 @@ prepare:
 	chmod 555 stage/DEBIAN/postinst
 
 package:
-	dpkg-deb --build stage ddbpgap.deb
+	dpkg-deb --build stage appmetric2ddb.deb
 
 clean:
 	rm -rf ./stage

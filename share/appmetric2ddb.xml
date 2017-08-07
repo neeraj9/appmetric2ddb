@@ -4,9 +4,9 @@
         Copyright 2012 Project FiFo / Heinz N. Gies
 -->
 
-<service_bundle type='manifest' name='appmetric2ddb-ddbpgap'>
+<service_bundle type='manifest' name='appmetric2ddb'>
   <service
-    name='appmetric2ddb/ddbpgap'
+    name='appmetric2ddb/appmetric2ddb'
     type='service'
     version='0.1.0'>
     <create_default_instance enabled='false' />

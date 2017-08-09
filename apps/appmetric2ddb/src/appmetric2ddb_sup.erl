@@ -73,7 +73,13 @@ init([]) ->
             lists:nth(Index,
                 proplists:get_value(rabbitmq, DdbConfig))),
         Index, worker) || Index <- lists:seq(1, NumRabbitmqWorkers)],
-    Specs = RabbitmqSpecs,
+    NumRiakWorkers = length(proplists:get_value(riak, DdbConfig, [])),
+    RiakSpecs = [?CHILD(riak_metric_server,
+        proplists:get_value(name,
+            lists:nth(Index,
+                proplists:get_value(riak, DdbConfig))),
+        Index, worker) || Index <- lists:seq(1, NumRiakWorkers)],
+    Specs = RabbitmqSpecs ++ RiakSpecs,
     {ok, { SupFlags, Specs} }.
 
 %%%===================================================================

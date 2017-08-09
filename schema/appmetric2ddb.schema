@@ -63,3 +63,38 @@
                end, #{}, SomeList),
    [maps:to_list(X) || X <- maps:values(M)]
   end}.
+
+
+%% Riak to monitor
+{mapping, "ddb.riak.$id.name", "appmetric2ddb.ddbconfig.riak",
+ [{default, riak1_worker},
+  {datatype, atom},
+  {include_default, "1"}]}.
+
+{mapping, "ddb.riak.$id.interval", "appmetric2ddb.ddbconfig.riak",
+ [{default, 10000},
+  {datatype, integer},
+  {include_default, "1"}]}.
+
+{mapping, "ddb.riak.$id.riak_endpoint", "appmetric2ddb.ddbconfig.riak",
+ [{default, {"127.0.0.1", 8098}},
+  {datatype, ip},
+  {include_default, "1"}]}.
+
+{translation,
+  "appmetric2ddb.ddbconfig.riak",
+  fun(Conf) ->
+   SomeList = lists:filter(
+     fun({K, _V}) ->
+       case K of
+         ["ddb", "riak", _, _] -> true;
+         _ -> false
+       end
+     end,
+     Conf),
+   M = lists:foldl(fun({[_, _, Id, Name], V}, AccIn) ->
+     OldMap = maps:get(Id, AccIn, #{}),
+     AccIn#{Id => OldMap#{list_to_atom(Name) => V}}
+               end, #{}, SomeList),
+   [maps:to_list(X) || X <- maps:values(M)]
+  end}.

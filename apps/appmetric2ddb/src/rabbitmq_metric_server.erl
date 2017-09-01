@@ -148,11 +148,11 @@ handle_call(_Request, _From, State) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({rabbitmq, ProplistMetrics} = _Request,
-    #state{interval = IntervalMsec, bucket = DDBBucket,
+    #state{bucket = DDBBucket,
         ddb_host = DDBHost, ddb_port = DDBPort,
         ddb = DDB} = State) ->
     lager:debug("handle_cast(~p, ~p)", [_Request, State]),
-    case try_connect(DDB, DDBHost, DDBPort, DDBBucket, IntervalMsec) of
+    case try_connect(DDB, DDBHost, DDBPort, DDBBucket, 1000) of
         {ok, DDB1} ->
             TimeSec = erlang:system_time(second),
             [{nodes, NodesInfo}, {channels, ChannelsInfo}, {queues, QueuesInfo}] = ProplistMetrics,
@@ -324,7 +324,7 @@ get_rabbitmq_nodes_info(RmqBaseUrl, RmqHttpBasicAuth) ->
 get_rabbitmq_channels_info(RmqBaseUrl, RmqHttpBasicAuth) ->
     case http_get_url("/api/channels", RmqBaseUrl, RmqHttpBasicAuth) of
         {ok, {{_, 200, _}, _, Body}} ->
-            CurrentEpocSec = erlang:system_time(second),
+            %% CurrentEpocSec = erlang:system_time(second),
             Maps = jsone:decode(Body, [{object_format, map}]),
             %% Aggregate metrics per peer_host (ip address but independent of port)
             lists:foldl(fun(E, AccIn) ->
@@ -342,13 +342,14 @@ get_rabbitmq_channels_info(RmqBaseUrl, RmqHttpBasicAuth) ->
                 DeliverRate = maps:get(<<"rate">>, maps:get(<<"deliver_details">>, MessageStats, #{}), 0.0),
                 DeliverGet = maps:get(<<"deliver_get">>, MessageStats, 0),
                 DeliverGetRate = maps:get(<<"rate">>, maps:get(<<"deliver_get_details">>, MessageStats, #{}), 0.0),
-                IdleSinceEpocSec = qdate:to_unixtime(maps:get(<<"idle_since">>, E)),
+                %% IdleSinceEpocSec = qdate:to_unixtime(maps:get(<<"idle_since">>, E)),
                 MetricInfo = Info#{
                     <<"publish">> => Publish, <<"publish_rate">> => PublishRate,
                     <<"ack">> => Ack, <<"ack_rate">> => AckRate,
                     <<"deliver">> => Deliver, <<"deliver_rate">> => DeliverRate,
-                    <<"deliver_get">> => DeliverGet, <<"deliver_get_rate">> => DeliverGetRate,
-                    <<"idle_since_sec">> => CurrentEpocSec - IdleSinceEpocSec},
+                    <<"deliver_get">> => DeliverGet, <<"deliver_get_rate">> => DeliverGetRate
+                    %% <<"idle_since_sec">> => CurrentEpocSec - IdleSinceEpocSec
+                },
                 OldMetricInfo = maps:get({Node, Peer}, AccIn, #{}),
                 UpdatedMetricInfo = maps:fold(fun(K, V, AccIn2) ->
                     case maps:get(K, AccIn2, undefined) of
@@ -366,7 +367,7 @@ get_rabbitmq_channels_info(RmqBaseUrl, RmqHttpBasicAuth) ->
 get_rabbitmq_queues_info(RmqBaseUrl, RmqHttpBasicAuth) ->
     case http_get_url("/api/queues", RmqBaseUrl, RmqHttpBasicAuth) of
         {ok, {{_, 200, _}, _, Body}} ->
-            CurrentEpocSec = erlang:system_time(second),
+            %% CurrentEpocSec = erlang:system_time(second),
             Maps = jsone:decode(Body, [{object_format, map}]),
             %% get metrics per queue
             lists:foldl(fun(E, AccIn) ->
@@ -388,7 +389,7 @@ get_rabbitmq_queues_info(RmqBaseUrl, RmqHttpBasicAuth) ->
                 GetRate = maps:get(<<"rate">>, maps:get(<<"get_details">>, MessageStats, #{}), 0.0),
                 Redeliver = maps:get(<<"redeliver">>, MessageStats, 0),
                 RedeliverRate = maps:get(<<"rate">>, maps:get(<<"redeliver_details">>, MessageStats, #{}), 0.0),
-                IdleSinceEpocSec = qdate:to_unixtime(maps:get(<<"idle_since">>, E)),
+                %% IdleSinceEpocSec = qdate:to_unixtime(maps:get(<<"idle_since">>, E)),
                 BackingQueueStatus = maps:get(<<"backing_queue_status">>, E),
                 #{
                     <<"q1">> := BqsQ1,
@@ -396,11 +397,11 @@ get_rabbitmq_queues_info(RmqBaseUrl, RmqHttpBasicAuth) ->
                     <<"q3">> := BqsQ3,
                     <<"q4">> := BqsQ4,
                     <<"len">> := BqsLen,
-                    <<"pending_acks">> := BqsPendingAcks,
-                    <<"ram_msg_count">> := BqsRamMsgCount,
-                    <<"ram_ack_count">> := BqsRamAckCount,
+                    %% <<"pending_acks">> := BqsPendingAcks,
+                    %% <<"ram_msg_count">> := BqsRamMsgCount,
+                    %% <<"ram_ack_count">> := BqsRamAckCount,
                     <<"next_seq_id">> := BqsNextSeqId,
-                    <<"persistent_count">> := BqsPersistentCount,
+                    %% <<"persistent_count">> := BqsPersistentCount,
                     <<"avg_ingress_rate">> := BqsAvgIngressRate,
                     <<"avg_egress_rate">> := BqsAvgEgressRate,
                     <<"avg_ack_ingress_rate">> := BqsAvgAckIngressRate,
@@ -413,17 +414,17 @@ get_rabbitmq_queues_info(RmqBaseUrl, RmqHttpBasicAuth) ->
                     <<"deliver_get">> => DeliverGet, <<"deliver_get_rate">> => DeliverGetRate,
                     <<"get">> => Get, <<"get_rate">> => GetRate,
                     <<"redeliver">> => Redeliver, <<"redeliver_rate">> => RedeliverRate,
-                    <<"idle_since_sec">> => CurrentEpocSec - IdleSinceEpocSec,
+                    %% <<"idle_since_sec">> => CurrentEpocSec - IdleSinceEpocSec,
                     <<"bqs_q1">> => BqsQ1,
                     <<"bqs_q2">> => BqsQ2,
                     <<"bqs_q3">> => BqsQ3,
                     <<"bqs_q4">> => BqsQ4,
                     <<"bqs_len">> => BqsLen,
-                    <<"bqs_pending_acks">> => BqsPendingAcks,
-                    <<"bqs_ram_msg_count">> => BqsRamMsgCount,
-                    <<"bqs_ram_ack_count">> => BqsRamAckCount,
+                    %% <<"bqs_pending_acks">> => BqsPendingAcks,
+                    %% <<"bqs_ram_msg_count">> => BqsRamMsgCount,
+                    %% <<"bqs_ram_ack_count">> => BqsRamAckCount,
                     <<"bqs_next_seq_id">> => BqsNextSeqId,
-                    <<"bqs_persistent_count">> => BqsPersistentCount,
+                    %% <<"bqs_persistent_count">> => BqsPersistentCount,
                     <<"bqs_avg_ingress_rate">> => BqsAvgIngressRate,
                     <<"bqs_avg_egress_rate">> => BqsAvgEgressRate,
                     <<"bqs_avg_ack_ingress_rate">> => BqsAvgAckIngressRate,

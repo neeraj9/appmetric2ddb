@@ -139,11 +139,11 @@ handle_call(_Request, _From, State) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({riak, ProplistMetrics} = _Request,
-    #state{interval = IntervalMsec, bucket = DDBBucket,
+    #state{bucket = DDBBucket,
         ddb_host = DDBHost, ddb_port = DDBPort,
         ddb = DDB} = State) ->
     lager:debug("handle_cast(~p, ~p)", [_Request, State]),
-    case try_connect(DDB, DDBHost, DDBPort, DDBBucket, IntervalMsec) of
+    case try_connect(DDB, DDBHost, DDBPort, DDBBucket, 1000) of
         {ok, DDB1} ->
             TimeSec = erlang:system_time(second),
             [{stats, StatsInfo}] = ProplistMetrics,
@@ -262,6 +262,7 @@ terminate(_Reason, #state{ddb = DDB} = _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
+-spec receive_riak_metrics(RiakBaseUrl :: string(), CallbackPid :: pid()) -> ok.
 receive_riak_metrics(RiakBaseUrl, CallbackPid) ->
     StatsInfo = get_riak_stats(RiakBaseUrl),
     R = [{stats, StatsInfo}],
@@ -272,6 +273,7 @@ receive_riak_metrics(RiakBaseUrl, CallbackPid) ->
 %%% Internal functions
 %%%===================================================================
 
+-spec get_riak_stats(RiakBaseUrl :: string()) -> undefined | map().
 get_riak_stats(RiakBaseUrl) ->
     case http_get_url("/stats", RiakBaseUrl) of
         {ok, {{_, 200, _}, _, Body}} ->
@@ -364,6 +366,8 @@ connect(Host, Port, Bucket, IntervalMsec) ->
         false -> {error, DDB}
     end.
 
+-spec close_ddb(undefined | ddb_tcp:connection()) ->
+    undefined | ddb_tcp:connection().
 close_ddb(undefined) ->
     undefined;
 close_ddb(DDB) ->
